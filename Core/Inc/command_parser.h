@@ -12,11 +12,11 @@
 #include <stdint.h>
 #define MAX_BUFFER_SIZE 30
 
-extern uint8_t buffer[];
-extern uint8_t buffer_flag;
+extern volatile uint8_t buffer[];
+extern volatile uint8_t buffer_flag;
 extern uint8_t temp;
-extern uint8_t command_flag;
-extern uint8_t index_buffer;
+extern volatile uint8_t command_flag;
+extern volatile uint8_t index_buffer;
 // 1 = RST
 // 2 = OK
 

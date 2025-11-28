@@ -6,49 +6,69 @@
  */
 #include "uart_communication_fsm.h"
 
-
 extern ADC_HandleTypeDef hadc1;
 extern UART_HandleTypeDef huart2;
+extern volatile uint8_t command_flag;
 
-void uart_communication_fsm()
-{
-    static int state = 0;
-    static uint32_t timestamp = 0;
-    static char msg[50];
-    uint32_t adc;
+void uart_communication_fsm() {
+  static int state = 0;
+  static int counter = 0;
+  static char msg[50];
+  uint32_t adc;
 
-    switch(state)
-    {
-    case 0:
-        if (command_flag == 1) // !RST#
-        {
-            command_flag = 0;
+  // Ưu tiên xử lý lệnh !OK# để dừng ngay lập tức bất kể trạng thái
+  if (command_flag == 2) { // !OK#
+    command_flag = 0;
+    state = 0;
+    counter = 0;
+    return;
+  }
 
-            HAL_ADC_Start(&hadc1);
-            adc = HAL_ADC_GetValue(&hadc1);
+  switch (state) {
 
-            sprintf(msg, "!ADC=%lu#", adc);
-            HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+  //-------------------------------
+  // STATE 0 — CHỜ !RST#
+  //-------------------------------
+  case 0:
+    if (command_flag == 1) { // !RST#
+      // Chỉ gửi khi UART sẵn sàng
+      if (HAL_UART_GetState(&huart2) == HAL_UART_STATE_READY) {
+        adc = HAL_ADC_GetValue(&hadc1);
+        sprintf(msg, "!ADC=%lu#\r\n", adc);
+        HAL_UART_Transmit_IT(&huart2, (uint8_t *)msg, strlen(msg));
 
-            timestamp = HAL_GetTick();
-            state = 1;
-        }
-        break;
-
-    case 1:
-        if (command_flag == 2) // !OK#
-        {
-            command_flag = 0;
-            state = 0;
-        }
-        else if (HAL_GetTick() - timestamp >= 3000)
-        {
-            HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
-            timestamp = HAL_GetTick();
-        }
-        break;
+        command_flag = 0;
+        counter = 0;
+        state = 1;
+      }
+      // Nếu UART bận, giữ command_flag = 1 để thử lại ở vòng lặp sau
     }
+    break;
+
+  //-------------------------------
+  // STATE 1 — ĐÃ GỬI ADC, CHỜ !OK#
+  //-------------------------------
+  case 1:
+    if (command_flag == 1) { // !RST# AGAIN -> Gửi lại ngay
+      if (HAL_UART_GetState(&huart2) == HAL_UART_STATE_READY) {
+        adc = HAL_ADC_GetValue(&hadc1);
+        sprintf(msg, "!ADC=%lu#\r\n", adc);
+        HAL_UART_Transmit_IT(&huart2, (uint8_t *)msg, strlen(msg));
+
+        command_flag = 0;
+        counter = 0;
+      }
+    } else {
+      counter++;
+      if (counter >= 300) { // 3 giây
+        if (HAL_UART_GetState(&huart2) == HAL_UART_STATE_READY) {
+          adc = HAL_ADC_GetValue(&hadc1);
+          sprintf(msg, "!ADC=%lu#\r\n", adc);
+          HAL_UART_Transmit_IT(&huart2, (uint8_t *)msg, strlen(msg));
+          counter = 0;
+        }
+      }
+    }
+    break;
+  }
 }
-
-
-
