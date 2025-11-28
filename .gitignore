@@ -1,0 +1,28 @@
+# STM32CubeIDE / Eclipse
+Debug/
+Release/
+.settings/
+*.launch
+
+# Build Artifacts
+*.elf
+*.bin
+*.map
+*.o
+*.d
+*.su
+*.list
+*.obj
+
+# Proteus
+*.pdsbak
+*.workspace
+Last Loaded *.pdsbak
+Backup Of *.pdsbak
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
